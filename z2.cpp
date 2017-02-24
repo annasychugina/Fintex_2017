@@ -1,185 +1,308 @@
-#include <iostream>
+#include <stdio.h>
 #include <string.h>
-#include <assert.h>
+#include <stdlib.h>
 
-using namespace std;
+#define MAX_LEN 500
 
+int N;
+char buf[MAX_LEN];
+char out_expr[MAX_LEN];
+int len_out_expr;
 
-int getPriority(char operand) {
-    if (operand == '*' || operand == '/') {
-        return 4;
+struct Lexema {
+    char *p;
+    int n;
+    
+    Lexema() {
+        p = NULL;
+        n = 0;
     }
-    if (operand == '+' || operand == '-') {
-        return 3;
+    
+    Lexema(char *p1, int n1) {
+        this->p = p1;
+        this->n = n1;
     }
-    if (operand == '(') {
-        return 2;
+    
+    void print() {
+        for (int i = 0; i < n; i++) {
+            printf("%c", p[i]);
+        }
+        printf("\n");
     }
-    if (operand == ')') {
-        return 1;
+};
+
+struct Elements_number {
+    char op;
+    int x;
+    
+    Elements_number() {
+        op = ' ';
+        x = 0;
     }
-    return -1;
-}
+    
+    Elements_number(char op1) {
+        this->op = op1;
+        this->x = 0;
+    }
+    
+    Elements_number(int x1) {
+        this->x = x1;
+        this->op = ' ';
+    }
+    
+};
 
+Lexema lexemes[MAX_LEN];
 
-int calculate(string outStr);
-
+Elements_number elems[MAX_LEN];
 
 class Stack {
 public:
-    Stack();
+    void push(Elements_number x);
+    Elements_number pop();
+    bool empty();
+    bool full();
     
+    Stack(int size1);
     ~Stack();
-    
-    void Push(int a);
-    int Pop();
-    int Top();
-    bool IsEmpty() const { return top == -1; }
-    
 private:
-    int *buffer;
-    int bufferSize;
-    int top;
+    Elements_number *data;
+    int size;
+    int top; //top elem number
     
-    void grow();
 };
 
-int main() {
-    char symbol = '0';
-    string outStr;
-    bool isPreviousSymbolNumber = false;
-    Stack stackForCalculate;
-    while (scanf("%c", &symbol) == 1) {
-        if (symbol == '\n' || symbol == '\0') {
-            break;
-        }
-        if (isdigit(symbol) != 0) {
-            isPreviousSymbolNumber = true;
-            outStr.push_back(symbol);
-        } else {
-            
-            if (isPreviousSymbolNumber) {
-                outStr.push_back(' ');
-                isPreviousSymbolNumber = false;
-            }
-            if (symbol == '(' || symbol == ')') {
-                if (symbol == '(') {
-                    stackForCalculate.Push(symbol);
-                } else {
-                    while (stackForCalculate.Pop() != '(') {
-                        outStr.push_back(char(stackForCalculate.Top()));
-                    }
-                    stackForCalculate.Top();
-                }
-            } else {
-                if (stackForCalculate.IsEmpty()) {
-                    stackForCalculate.Push(symbol);
-                } else {
-                    
-                    while (!stackForCalculate.IsEmpty()) {
-                        if (getPriority(char(stackForCalculate.Pop())) >= getPriority(symbol)) {
-                            outStr.push_back(char(stackForCalculate.Top()));
-                        } else {
-                            break;
-                        }
-                    }
-                    stackForCalculate.Push(symbol);
-                }
-            }
-        }
-    }
-    while (!stackForCalculate.IsEmpty()) {
-        outStr.push_back(char(stackForCalculate.Top()));
-    }
-    cout << calculate(outStr);
-    
-    return 0;
+void Stack::push(Elements_number x) {
+    if (!full())
+        this->data[++top] = x;
+    else
+        throw "Attempt push into full  stack";
 }
 
-
-Stack::Stack() : bufferSize(2), top(-1) {
-    buffer = new int[bufferSize];
+Elements_number Stack::pop() {
+    if (!empty())
+        return this->data[top--];
+    else
+        throw "Attempt pop from empty stack";
 }
 
+bool Stack::empty() {
+    return top == -1;
+}
+
+bool Stack::full() {
+    return top == size - 1;
+}
+
+Stack::Stack(int size1) {
+    this->size = size1;
+    this->data = new Elements_number[size];
+    this->top = -1;
+}
 
 Stack::~Stack() {
-    delete[] buffer;
+    if (data)
+        delete[] data;
+    data = NULL;
 }
 
+int ToNumber(char *a, int n) {
+    int x = 0;
+    int d;
+    int deg10 = 1;
+    
+    for (int i = n - 1; i >= 0; i--) {
+        d = a[i] - '0';
+        x += d * deg10;
+        deg10 *= 10;
+    }
+    return x;
+}
 
-void Stack::Push(int a) {
-    if (top + 2 > bufferSize) {
-        grow();
+int Split(char *s, int n, Lexema *lexemes) {
+    s[n - 1] = '\0';
+    
+    int j = 0; //elems
+    
+    char *w;
+    
+    if ((w = strtok(s, " ")) != NULL) {
+        lexemes[j++] = Lexema(w, strlen(w));
+    }
+    while ((w = strtok(NULL, " ")) != NULL) {
+        lexemes[j++] = Lexema(w, strlen(w));
     }
     
-    buffer[++top] = a;
+    return j;
 }
 
 
-int Stack::Pop() {
-    assert(top != -1);
-    return buffer[top];
-}
-
-
-int Stack::Top() {
-    assert(top != -1);
-    return buffer[top--];
-}
-
-
-void Stack::grow() {
-    int newBufferSize = bufferSize * 2;
-    int *tempBuffer = new int[newBufferSize];
-    for (int i = 0; i < bufferSize; ++i) {
-        tempBuffer[i] = buffer[i];
-    }
-    delete[] buffer;
-    buffer = tempBuffer;
-    bufferSize = newBufferSize;
-}
-
-
-int calculate(string outStr) {
-    Stack stack;
-    bool isNumberFirst = true;
-    int tempInt = 0;
-    int first = 0;
-    int second = 0;
-    for (int i = 0; i < outStr.length(); ++i) {
-        if (isdigit(outStr[i])) {
-            if (isNumberFirst) {
-                stack.Push(outStr[i] % 48);
-                isNumberFirst = false;
-            } else {
-                tempInt = stack.Top();
-                stack.Push(tempInt * 10 + outStr[i] % 48);
-            }
-        }
-        if (outStr[i] == ' ') {
-            isNumberFirst = true;
-        }
-        if (outStr[i] == '+') {
-            
-            first = stack.Top();
-            second = stack.Top();
-            stack.Push(first + second);
-        }
-        if (outStr[i] == '-') {
-            first = stack.Top();
-            second = stack.Top();
-            stack.Push(second - first);
-        }
-        if (outStr[i] == '/') {
-            first = stack.Top();
-            second = stack.Top();
-            stack.Push(second / first);
-        }
-        if (outStr[i] == '*') {
-            first = stack.Top();
-            second = stack.Top();
-            stack.Push(first * second);
+int Count_PostfixedExpr(Elements_number *elems, int nElems, Stack &st) {
+    char c;
+    Elements_number e1, e0;
+    
+    for (int i = nElems - 1; i >= 0; i--) {
+        Elements_number e = elems[i];
+        
+        c = e.op;
+        
+        switch (c) {
+            case '+':
+                e1 = st.pop();
+                e0 = st.pop();
+                st.push(Elements_number(e0.x + e1.x));
+                break;
+            case '-':
+                e1 = st.pop();
+                e0 = st.pop();
+                st.push(Elements_number(e1.x - e0.x));
+                break;
+            case '*':
+                e1 = st.pop();
+                e0 = st.pop();
+                st.push(Elements_number(e0.x * e1.x));
+                break;
+            case '/':
+                e1 = st.pop();
+                e0 = st.pop();
+                st.push(Elements_number(e1.x / e0.x));
+                break;
+            default:
+                st.push(e);
+                break;
         }
     }
-    return stack.Top();
+    
+    return st.pop().x;
+}
+//��������  ������
+
+bool delete_external_brackets(char *&expr, int &n) {
+    if (expr[0] != '(')
+        return false;
+    int i, level = 1;
+    for (i = 1; i < n && level != 0; i++) {
+        if (expr[i] == '(')
+            level++;
+        else if (expr[i] == ')')
+            level--;
+    }
+    
+    if (i == n) //������� ������� ������
+    {
+        expr += 1;
+        n -= 2;
+        return true;
+    } else
+        return false;
+}
+
+
+void output(char c)
+{
+    out_expr[len_out_expr++] = c;
+    out_expr[len_out_expr++] = ' ';
+}
+
+void output(char *a, int n)
+{
+    int i;
+    for (i = 0; i < n; i++)
+        out_expr[len_out_expr++] = a[i];
+    out_expr[len_out_expr++] = ' ';
+}
+
+void Postfix_note(char *expr, int n)
+{
+    while (delete_external_brackets(expr, n));
+    
+    int i;
+    char c;
+    int level = 0;
+    
+    
+    int pos_1 = -1;
+    int pos_2 = -1;
+    
+    for (i = 0; i < n;) {
+        c = expr[i];
+        switch (c) {
+            case '(': level++;
+                i++;
+                break;
+            case ')': level--;
+                i++;
+                break;
+            case '+':
+            case '-':
+            case '*':
+            case '/':
+                if (level == 0) {
+                    if (c == '+' || c == '-')
+                        pos_1 = i;
+                    else
+                        pos_2 = i;
+                }
+                i++;
+                break;
+            default:
+                for (; i < n && strchr("1234567890", expr[i]) != NULL; i++);
+                break;
+                
+        }
+    }
+    int pos;
+    
+    if (pos_1 != -1) //+, -
+    {
+        pos = pos_1;
+        output(expr[pos]);
+        Postfix_note(expr, pos);
+        Postfix_note(expr + (pos + 1), n - (pos + 1));
+    } else if (pos_2 != -1) //*, /
+    {
+        pos = pos_2;
+        output(expr[pos]);
+        Postfix_note(expr, pos);
+        Postfix_note(expr + (pos + 1), n - (pos + 1));
+    } else if (strchr("1234567890", expr[0]) != NULL) {
+        output(expr, n);
+    } else {
+        printf("[error]");
+    }
+    
+}
+
+Elements_number * Findelems(int nLexemes, Lexema *lexemes) {
+    for (int i = 0; i < nLexemes; i++) {
+        if (strchr("+-*/", lexemes[i].p[0]) != NULL)
+            elems[i] = Elements_number(lexemes[i].p[0]);
+        else
+            elems[i] = Elements_number(ToNumber(lexemes[i].p, lexemes[i].n));
+        
+    }
+    return elems;
+    
+}
+
+int main() {
+    
+    
+    scanf("%s", buf);
+    
+    
+    N = strlen(buf);
+    
+    Postfix_note(buf, N); //--> out_expr
+    
+    out_expr[len_out_expr - 1] = '\0';
+    
+    //Makes lexemes
+    int nLexemes = Split(out_expr, len_out_expr, lexemes);
+    
+    Stack st(100);
+    
+  
+    printf("%d", Count_PostfixedExpr(Findelems(nLexemes, lexemes), nLexemes, st));
+    return 0;
 }
