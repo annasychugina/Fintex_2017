@@ -9,10 +9,6 @@ import static java.lang.Math.max;
 import java.util.Scanner;
 import java.util.Stack;
 
-/**
- *
- * @author Админ
- */
 public class YellowMatrix {
 
     /**
